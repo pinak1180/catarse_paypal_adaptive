@@ -89,8 +89,33 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
                   PaymentEngines.find_payment(id: params['id'])
                 elsif params['txn_id']
                   PaymentEngines.find_payment(payment_id: params['txn_id']) || (params['parent_txn_id'] && PaymentEngines.find_payment(payment_id: params['parent_txn_id']))
+                elsif params['pay_key']
+                  PaymentEngines.find_payment(payment_token: params['pay_key'])
                 end
   end
+
+  def process_paypal_message(data)
+    extra_data = (data['charset'] ? JSON.parse(data.to_json.force_encoding(data['charset']).encode('utf-8')) : data)
+    PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: extra_data
+
+    if data["checkout_status"] == 'PaymentActionCompleted'
+      contribution.confirm!
+    elsif data["status"]
+      case data["status"].downcase
+      when 'completed'
+        contribution.confirm!
+      when 'refunded'
+        contribution.refund!
+      when 'canceled_reversal'
+        contribution.cancel!
+      when 'expired', 'denied'
+        contribution.pendent!
+      else
+        contribution.waiting! if contribution.pending?
+      end
+    end
+  end
+
 
 
   private
