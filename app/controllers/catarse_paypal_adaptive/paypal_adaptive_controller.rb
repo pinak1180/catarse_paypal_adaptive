@@ -16,6 +16,7 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
     end
     return render status: 200, nothing: true
   rescue Exception => e
+    Rails.logger.info "-----> #{e.inspect}"
     return render status: 500, text: e.inspect
   end
 
