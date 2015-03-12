@@ -31,7 +31,7 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
         :receiverList => {
           :receiver => [{
             :amount => contribution.price_in_cents.to_f/100,
-            :email => project.user.email }] },
+            :email => contribution.project.user.email }] },
         :returnUrl => success_paypal_adaptive_url(id: contribution.id) })
 
       response = api.pay(@pay) if request.post?
