@@ -31,7 +31,7 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
         :receiverList => {
           :receiver => [{
             :amount => contribution.price_in_cents.to_f/100,
-            :email => contribution.user.email }] },
+            :email => project.user.email }] },
         :returnUrl => success_paypal_adaptive_url(id: contribution.id) })
 
       response = api.pay(@pay) if request.post?
@@ -78,8 +78,8 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
     end
   end
 
-  def cancel
-    PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: response.to_hash
+  def cancel    
+    contribution.cancel!
     flash[:failure] = t('paypal_cancel', scope: SCOPE)
     redirect_to main_app.new_project_contribution_path(contribution.project)
   end
