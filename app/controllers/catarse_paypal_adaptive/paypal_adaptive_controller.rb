@@ -25,30 +25,35 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
       @pay = api.build_pay({
         :actionType => "PAY",
         :cancelUrl => cancel_paypal_adaptive_url(id: contribution.id),
-        :currencyCode => "EUR",
-        :feesPayer => "SENDER",
+        :currencyCode => "USD",
+        :feesPayer => "PRIMARYRECEIVER",
         :ipnNotificationUrl => ipn_paypal_adaptive_index_url(subdomain: 'www'),
         :receiverList => {
           :receiver => [{
-            :amount => contribution.price_in_cents.to_f/100,
-            :email => contribution.project.user.email }] },
+            :amount =>9.5,
+            :email => contribution.project.user.email,:primary => true  },
+            {
+              :amount => 0.5,
+              :email =>  "paypal@contribute.de",:primary => false }],
+            },
         :returnUrl => success_paypal_adaptive_url(id: contribution.id) })
 
       response = api.pay(@pay) if request.post?
-      
+
       PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: response.to_hash
-      
+
       if response.success? && response.payment_exec_status != "ERROR"
         contribution.update_attributes payment_method: 'PayPal', payment_token: response.payKey
         redirect_to api.payment_url(response)  # Url to complete payment
       else
-        Rails.logger.info "-----> #{response.error}"
+        Rails.logger.info "----pinak-> #{response.error}"
         flash[:failure] = t('paypal_error', scope: SCOPE)
         return redirect_to main_app.new_project_contribution_path(contribution.project)
       end
-      
+
     rescue Exception => e
-      Rails.logger.info "-----> #{e.inspect}"
+      Rails.logger.info "--shreya---> #{e.inspect}"
+      puts e.message
       flash[:failure] = t('paypal_error', scope: SCOPE)
       return redirect_to main_app.new_project_contribution_path(contribution.project)
     end
@@ -58,19 +63,19 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
     begin
       payment_details = api.build_payment_details(:payKey => contribution.payment_token)
       response = api.payment_details(payment_details)
-      
+
       PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: response.to_hash
-         
+
       if response.success? && response.status == 'COMPLETED'
         # contribution.update_attributes payment_id: purchase.params['transaction_id'] if purchase.params['transaction_id']
         contribution.confirm!
 
         flash[:success] = t('success', scope: SCOPE)
         redirect_to main_app.project_contribution_path(project_id: contribution.project.id, id: contribution.id)
-      else 
+      else
         flash[:failure] = t('paypal_error', scope: SCOPE)
         redirect_to main_app.new_project_contribution_path(contribution.project)
-      end      
+      end
     rescue Exception => e
       Rails.logger.info "-----> #{e.inspect}"
       flash[:failure] = t('paypal_error', scope: SCOPE)
@@ -78,7 +83,7 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
     end
   end
 
-  def cancel    
+  def cancel
     contribution.cancel!
     flash[:failure] = t('paypal_cancel', scope: SCOPE)
     redirect_to main_app.new_project_contribution_path(contribution.project)
@@ -123,5 +128,5 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
   def api
     @api ||= API.new
   end
-  
+
 end
